@@ -32,11 +32,18 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: ./geoip/go.mod
+          cache-dependency-path: ./geoip/go.sum
 
       - name: Set variables
         run: |
           echo "TAG_NAME=$(date +%Y%m%d%H%M)" >> $GITHUB_ENV
-          echo "RELEASE_NAME=$(date +%Y%m%d%H%M)" >> $GITHUB_ENV
+          echo "RELEASE_NAME=GeoIP-$(date +%Y%m%d%H%M)" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Create tag for geoip
+        run: |
+          git tag "geoip-${{ env.TAG_NAME }}"
+          git push origin "geoip-${{ env.TAG_NAME }}"
         shell: bash
 
       - name: Build geoip files
@@ -100,16 +107,22 @@ jobs:
           file_glob: true
           file: ./output/*
           release_name: ${{ env.RELEASE_NAME }}
-          tag: ${{ env.TAG_NAME }}
+          tag: "geoip-${{ env.TAG_NAME }}"
 
   build_geosite:
     name: Build geosite files
+    needs: build_geoip
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout codebase
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Set variables
         run: |
-          echo "RELEASE_NAME=$(date +%Y%m%d%H%M)" >> $GITHUB_ENV
           echo "TAG_NAME=$(date +%Y%m%d%H%M)" >> $GITHUB_ENV
+          echo "RELEASE_NAME=Geosite-$(date +%Y%m%d%H%M)" >> $GITHUB_ENV
           
           echo "ANTIFILTER_DOWNLOAD=https://antifilter.download/list/domains.lst" >> $GITHUB_ENV
           echo "ANTIFILTER_DOWNLOAD_COMMUNITY=https://community.antifilter.download/list/domains.lst" >> $GITHUB_ENV
@@ -180,7 +193,7 @@ jobs:
           echo "include:refilter" >> ./community/data/ru-blocked
           
           echo "include:antifilter-download" > ./community/data/ru-blocked-all
-          echo "include:antifilter-download-community" >> ./community/data/ru-blocked-all
+          echo "include:antifilter-download-community" > ./community/data/ru-blocked-all
           echo "include:refilter" >> ./community/data/ru-blocked-all          
 
       - name: Build Ru only list
@@ -204,12 +217,18 @@ jobs:
           
           sha256sum ./publish/geosite.dat > ./publish/geosite.dat.sha256sum
 
+      - name: Create tag for geosite
+        run: |
+          git tag "geosite-${{ env.TAG_NAME }}"
+          git push origin "geosite-${{ env.TAG_NAME }}"
+        shell: bash
+
       - name: Release and upload assets
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           release_name: ${{ env.RELEASE_NAME }}
-          tag: ${{ env.TAG_NAME }}
+          tag: "geosite-${{ env.TAG_NAME }}"
           file_glob: true
           file: ./publish/*
 
